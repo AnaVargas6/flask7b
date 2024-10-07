@@ -54,7 +54,7 @@ def notificarActualizacionTemperaturaHumedad():
         ssl=True
     )
 
-    pusher_client.trigger("canalRegistrosTemperaturaHumedad", "registroTemperaturaHumedad", args)
+    pusher_client.trigger("canalRegistrosContacto", "registroContacto", args)
 
 @app.route("/buscar")
 def buscar():
@@ -63,8 +63,8 @@ def buscar():
 
     cursor = con.cursor(dictionary=True)
     cursor.execute("""
-    SELECT Id_Log, Temperatura, Humedad, DATE_FORMAT(Fecha_Hora, '%d/%m/%Y') AS Fecha, DATE_FORMAT(Fecha_Hora, '%H:%i:%s') AS Hora FROM sensor_log
-    ORDER BY Id_Log DESC
+    SELECT Id_Contacto, Correo_Electronica, Nombre, Asunto FROM tst0_contacto
+    ORDER BY Id_Contacto DESC
     LIMIT 10 OFFSET 0
     """)
     registros = cursor.fetchall()
@@ -79,32 +79,33 @@ def guardar():
         con.reconnect()
 
     id          = request.form["id"]
-    temperatura = request.form["temperatura"]
-    humedad     = request.form["humedad"]
-    fechahora   = datetime.datetime.now(pytz.timezone("America/Matamoros"))
+    correo_electronico = request.form["correo_electronico"]
+    nombre     = request.form["nombre"]
+     asunto     = request.form["asunto"]
     
     cursor = con.cursor()
 
     if id:
         sql = """
-        UPDATE sensor_log SET
-        Temperatura = %s,
-        Humedad     = %s
-        WHERE Id_Log = %s
+        UPDATE tst0_contacto SET
+        Correo_Electronico = %s,
+        Nombre     = %s
+        Asunto     = %s
+        WHERE Id_Contacto = %s
         """
-        val = (temperatura, humedad, id)
+        val = (correo_electronico, nombre, asunto, id)
     else:
         sql = """
-        INSERT INTO sensor_log (Temperatura, Humedad, Fecha_Hora)
+        INSERT INTO tst0_contacto (Correo_Electronico, Nombre, Asunto)
                         VALUES (%s,          %s,      %s)
         """
-        val =                  (temperatura, humedad, fechahora)
+        val =                  (correo_electronico, nombre, asunto)
     
     cursor.execute(sql, val)
     con.commit()
     con.close()
 
-    notificarActualizacionTemperaturaHumedad()
+    notificarActualizacionContacto()
 
     return make_response(jsonify({}))
 
@@ -117,8 +118,8 @@ def editar():
 
     cursor = con.cursor(dictionary=True)
     sql    = """
-    SELECT Id_Log, Temperatura, Humedad FROM sensor_log
-    WHERE Id_Log = %s
+    SELECT Id_Contacto, Correo_Electronico, Nombre , Asunto FROM tst0_Contacto
+    WHERE Id_Contacto = %s
     """
     val    = (id,)
 
@@ -137,8 +138,8 @@ def eliminar():
 
     cursor = con.cursor(dictionary=True)
     sql    = """
-    DELETE FROM sensor_log
-    WHERE Id_Log = %s
+    DELETE FROM tst0_contacto
+    WHERE Id_Contacto = %s
     """
     val    = (id,)
 
@@ -146,6 +147,6 @@ def eliminar():
     con.commit()
     con.close()
 
-    notificarActualizacionTemperaturaHumedad()
+    notificarActualizacionContacto()
 
     return make_response(jsonify({}))
