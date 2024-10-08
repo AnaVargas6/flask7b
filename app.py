@@ -89,7 +89,7 @@ def guardar():
         sql = """
         UPDATE tst0_contacto SET
         Correo_Electronico = %s,
-        Nombre     = %s
+        Nombre     = %s,
         Asunto     = %s
         WHERE Id_Contacto = %s
         """
