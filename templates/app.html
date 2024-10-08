@@ -14,16 +14,20 @@
 </head>
 <body>
     <div class="container">
-      <form id="frmTemperaturaHumedad" method="post">
+      <form id="frm" method="post">
           <input type="hidden" id="id" name="id">
 
           <div class="mb-1">
-              <label for="temperatura">Temperatura</label>
-              <input type="number" id="temperatura" name="temperatura" class="form-control">
+              <label for="correo_electronico">Correo_Electronico</label>
+              <input type="email" id="correo_electronico" name="correo_electronico" class="form-control">
           </div>
           <div class="mb-1">
-              <label for="humedad">Humedad</label>
-              <input type="number" id="humedad" name="humedad" class="form-control">
+              <label for="nombre">Nombre</label>
+              <input type="text" id="nombre" name="nombre" class="form-control">
+          </div>
+            <div class="mb-1">
+              <label for="asunto">Asunto</label>
+              <input type="text" id="asunto" name="asunto" class="form-control">
           </div>
           <div class="mb-1">
               <button id="guardar" name="guardar" class="btn btn-dark">Guardar</button>
@@ -33,14 +37,13 @@
       <table class="table table-sm">
         <thead>
           <tr>
-            <th>Temperatura</th>
-            <th>Humedad</th>
-            <th>Fecha</th>
-            <th>Hora</th>
+            <th>Correo_Electronico</th>
+            <th>Nombre</th>
+            <th>Asunto</th>
             <th></th>
           </tr>
         </thead>
-        <tbody id="tbodyTemperaturaHumedad"></tbody>
+        <tbody id="tbodyContacto"></tbody>
       </table>
     </div>
 
@@ -117,29 +120,21 @@
         window.addEventListener("load", function (event) {
             function buscar() {
                 $.get("/buscar", function (respuesta) {
-                    $("#tbodyTemperaturaHumedad").html("")
+                    $("#tbodyContacto").html("")
 
                     var fechaAnterior = ""
 
                     for (var x in respuesta) {
-                        var temperaturaHumedad = respuesta[x]
-
-                        var fecha = ""
-                        var fechaTemp = temperaturaHumedad["Fecha"]
-
-                        if (fechaAnterior != fechaTemp) {
-                            fecha         = fechaTemp
-                            fechaAnterior = fechaTemp
+                        var contacto = respuesta[x]
                         }
 
-                        $("#tbodyTemperaturaHumedad").append(`<tr>
-                            <td>${temperaturaHumedad["Temperatura"]}</td>
-                            <td>${temperaturaHumedad["Humedad"]}</td>
-                            <td>${fecha}</td>
-                            <td>${temperaturaHumedad["Hora"]}</td>
+                        $("#tbodyContacto").append(`<tr>
+                            <td>${contacto["Correo_Electronico"]}</td>
+                            <td>${contacto["Nombre"]}</td>
+                            <td>${contacto["Asunto"]}</td>
                             <td>
-                                <button class="btn btn-primary btn-editar" data-id="${temperaturaHumedad["Id_Log"]}">Editar</button>
-                                <button class="btn btn-danger btn-eliminar" data-id="${temperaturaHumedad["Id_Log"]}">Eliminar</button>
+                                <button class="btn btn-primary btn-editar" data-id="${contacto["Id_Contacto"]}">Editar</button>
+                                <button class="btn btn-danger btn-eliminar" data-id="${contacto["Id_Contacto"]}">Eliminar</button>
                             </td>
                         </tr>`)
                     }
@@ -153,14 +148,15 @@
 
                 $.get("/editar", {id: id}, function (respuesta) {
                     console.log(respuesta)
-                    var temperaturaHumedad = respuesta[0]
+                    var contacto = respuesta[0]
 
                     $("#id")
-                    .val(temperaturaHumedad["Id_Log"])
+                    .val(contacto["Id_Contacto"])
                     .trigger("focus")
 
-                    $("#temperatura").val(temperaturaHumedad["Temperatura"])
-                    $("#humedad").val(temperaturaHumedad["Humedad"])
+                    $("#correo_electronico").val(contacto["Correo_Electronico"])
+                    $("#nombre").val(contacto["Nombre"])
+                    $("#asunto").val(contacto["Asunto"])
                 })
             })
             
@@ -174,12 +170,12 @@
                 $.post("/eliminar", {id: id})
             })
 
-            $("#frmTemperaturaHumedad")
+            $("#frmContacto")
             .submit(function (event)  {
                 event.preventDefault()
 
                 $.post("/guardar", $(this).serialize(), function (respuesta) {
-                    $("#frmTemperaturaHumedad").get(0).reset()
+                    $("#frmContacto").get(0).reset()
                 })
             })
             .on("reset", function (event) {
@@ -188,26 +184,27 @@
 
             Pusher.logToConsole = true
             
-            var pusher = new Pusher("2df86616075904231311", {
-                cluster: "us2"
+           var pusher = new Pusher('252e6abbd99ae9de9d15', {
+           cluster: 'us2'
             })
 
             // Canal ---> Donde se concentran los hilos con los clientes conectados
-            var channel = pusher.subscribe("canalRegistrosTemperaturaHumedad");
+            var channel = pusher.subscribe("canalRegistrosContacto");
 
             // Evento --> El código que se accionará con la información enviada o el uso del canal
-            channel.bind("registroTemperaturaHumedad", function (temperaturaHumedad) {
+            channel.bind("registroContacto", function (contacto) {
                 // 1. Notificar el evento
                 // alert("Ocurrió el evento")
 
                 // 2. Recibir información enviada en el evento
-                // console.log(temperaturaHumedad)
+                // console.log(contacto)
 
                 // 3. Trabajar información enviada por el evento
                 /**
-                $("#tbodyTemperaturaHumedad").prepend(`<tr>
-                    <td>${temperaturaHumedad.temperatura}</td>
-                    <td>${temperaturaHumedad.humedad}</td>
+                $("#tbodyContacto").prepend(`<tr>
+                    <td>${contacto.correo_electronico}</td>
+                    <td>${contacto.nombre}</td>
+                     <td>${contacto.asunto}</td>
                     <td></td>
                 </tr>`)
                 */
