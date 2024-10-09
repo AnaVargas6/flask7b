@@ -25,7 +25,7 @@
               <label for="nombre">Nombre</label>
               <input type="text" id="nombre" name="nombre" class="form-control">
           </div>
-            <div class="mb-1">
+          <div class="mb-1">
               <label for="asunto">Asunto</label>
               <input type="text" id="asunto" name="asunto" class="form-control">
           </div>
@@ -64,14 +64,11 @@
         </ul>
     </div>
     <script>
-        /*!
+        /*! 
         * Color mode toggler for Bootstrap's docs (https://getbootstrap.com/)
         * Copyright 2011-2022 The Bootstrap Authors
         * Licensed under the Creative Commons Attribution 3.0 Unported License.
         */
-
-        /** Reescrito */
-
         var bootstrapTheme = localStorage.getItem("theme")
 
         function getPreferredTheme() {
@@ -85,8 +82,7 @@
         function setTheme(theme) {
             if (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches) {
                 document.documentElement.setAttribute("data-bs-theme", "dark")
-            }
-            else {
+            } else {
                 document.documentElement.setAttribute("data-bs-theme", ((theme == "auto") ? "light" : theme))
             }
         }
@@ -104,8 +100,7 @@
         })
 
         window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (event) {
-            if (bootstrapTheme !== "light"
-            || bootstrapTheme !== "dark") {
+            if (bootstrapTheme !== "light" || bootstrapTheme !== "dark") {
                 setTheme(getPreferredTheme())
             }
         })
@@ -122,11 +117,8 @@
                 $.get("/buscar", function (respuesta) {
                     $("#tbodyContacto").html("")
 
-                    var fechaAnterior = ""
-
                     for (var x in respuesta) {
                         var contacto = respuesta[x]
-                        }
 
                         $("#tbodyContacto").append(`<tr>
                             <td>${contacto["Correo_Electronico"]}</td>
@@ -167,15 +159,18 @@
 
                 var id = $(this).attr("data-id")
 
-                $.post("/eliminar", {id: id})
+                $.post("/eliminar", {id: id}, function() {
+                    buscar()
+                })
             })
 
-            $("#frmContacto")
+            $("#frm")
             .submit(function (event)  {
                 event.preventDefault()
 
                 $.post("/guardar", $(this).serialize(), function (respuesta) {
-                    $("#frmContacto").get(0).reset()
+                    $("#frm").get(0).reset()
+                    buscar()
                 })
             })
             .on("reset", function (event) {
@@ -184,32 +179,13 @@
 
             Pusher.logToConsole = true
             
-           var pusher = new Pusher('252e6abbd99ae9de9d15', {
-           cluster: 'us2'
+            var pusher = new Pusher('252e6abbd99ae9de9d15', {
+                cluster: 'us2'
             })
 
-            // Canal ---> Donde se concentran los hilos con los clientes conectados
-            var channel = pusher.subscribe("canalRegistrosContacto");
+            var channel = pusher.subscribe("canalRegistrosContacto")
 
-            // Evento --> El código que se accionará con la información enviada o el uso del canal
             channel.bind("registroContacto", function (contacto) {
-                // 1. Notificar el evento
-                // alert("Ocurrió el evento")
-
-                // 2. Recibir información enviada en el evento
-                // console.log(contacto)
-
-                // 3. Trabajar información enviada por el evento
-                /**
-                $("#tbodyContacto").prepend(`<tr>
-                    <td>${contacto.correo_electronico}</td>
-                    <td>${contacto.nombre}</td>
-                     <td>${contacto.asunto}</td>
-                    <td></td>
-                </tr>`)
-                */
-
-                // 4. Mandar a llamar otro código luego del evento
                 buscar()
             })
         })
