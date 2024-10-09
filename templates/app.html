@@ -18,7 +18,7 @@
           <input type="hidden" id="id" name="id">
 
           <div class="mb-1">
-              <label for="correo_electronico">Correo_Electronico</label>
+              <label for="correo_electronico">Correo Electrónico</label>
               <input type="email" id="correo_electronico" name="correo_electronico" class="form-control">
           </div>
           <div class="mb-1">
@@ -37,7 +37,7 @@
       <table class="table table-sm">
         <thead>
           <tr>
-            <th>Correo_Electronico</th>
+            <th>Correo Electrónico</th>
             <th>Nombre</th>
             <th>Asunto</th>
             <th></th>
@@ -63,63 +63,61 @@
             </li>
         </ul>
     </div>
+    
+    <!-- Lógica de cambio de tema -->
     <script>
-        /*! 
-        * Color mode toggler for Bootstrap's docs (https://getbootstrap.com/)
-        * Copyright 2011-2022 The Bootstrap Authors
-        * Licensed under the Creative Commons Attribution 3.0 Unported License.
-        */
-        var bootstrapTheme = localStorage.getItem("theme")
+        var bootstrapTheme = localStorage.getItem("theme");
 
         function getPreferredTheme() {
             if (bootstrapTheme) {
-                return bootstrapTheme
+                return bootstrapTheme;
             }
 
-            return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+            return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         }
 
         function setTheme(theme) {
             if (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-                document.documentElement.setAttribute("data-bs-theme", "dark")
+                document.documentElement.setAttribute("data-bs-theme", "dark");
             } else {
-                document.documentElement.setAttribute("data-bs-theme", ((theme == "auto") ? "light" : theme))
+                document.documentElement.setAttribute("data-bs-theme", ((theme == "auto") ? "light" : theme));
             }
         }
 
         function showActiveTheme(theme) {
-            $("[data-bs-theme-value]").removeClass("bg-primary text-white active")
-            $(`[data-bs-theme-value="${theme}"]`).addClass("bg-primary text-white active")
+            $("[data-bs-theme-value]").removeClass("bg-primary text-white active");
+            $(`[data-bs-theme-value="${theme}"]`).addClass("bg-primary text-white active");
         }
 
-        $(document).on("click", '[data-bs-theme-value]', function (event) {
-            const theme = this.getAttribute("data-bs-theme-value")
-            localStorage.setItem("theme", theme)
-            setTheme(theme)
-            showActiveTheme(theme)
-        })
+        $(document).on("click", '[data-bs-theme-value]', function () {
+            const theme = this.getAttribute("data-bs-theme-value");
+            localStorage.setItem("theme", theme);
+            setTheme(theme);
+            showActiveTheme(theme);
+        });
 
-        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (event) {
+        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
             if (bootstrapTheme !== "light" || bootstrapTheme !== "dark") {
-                setTheme(getPreferredTheme())
+                setTheme(getPreferredTheme());
             }
-        })
+        });
 
-        document.addEventListener("DOMContentLoaded", function (event) {
-            setTheme(bootstrapTheme)
-            showActiveTheme(getPreferredTheme())
-        })
+        document.addEventListener("DOMContentLoaded", function () {
+            setTheme(bootstrapTheme);
+            showActiveTheme(getPreferredTheme());
+        });
     </script>
 
+    <!-- Lógica de gestión de contactos -->
     <script>
-        window.addEventListener("load", function (event) {
+        window.addEventListener("load", function () {
             function buscar() {
-                $.get("/buscar", function (respuesta) {
-                    $("#tbodyContacto").html("")
+                $.get("/buscar")
+                .done(function (respuesta) {
+                    $("#tbodyContacto").html("");
 
                     for (var x in respuesta) {
-                        var contacto = respuesta[x]
-
+                        var contacto = respuesta[x];
                         $("#tbodyContacto").append(`<tr>
                             <td>${contacto["Correo_Electronico"]}</td>
                             <td>${contacto["Nombre"]}</td>
@@ -128,67 +126,79 @@
                                 <button class="btn btn-primary btn-editar" data-id="${contacto["Id_Contacto"]}">Editar</button>
                                 <button class="btn btn-danger btn-eliminar" data-id="${contacto["Id_Contacto"]}">Eliminar</button>
                             </td>
-                        </tr>`)
+                        </tr>`);
                     }
                 })
+                .fail(function (error) {
+                    console.error("Error al obtener contactos:", error);
+                });
             }
 
-            buscar()
+            buscar();
 
-            $(document).on("click", ".btn-editar", function (event) {
-                var id = $(this).attr("data-id")
+            $(document).on("click", ".btn-editar", function () {
+                var id = $(this).attr("data-id");
 
-                $.get("/editar", {id: id}, function (respuesta) {
-                    console.log(respuesta)
-                    var contacto = respuesta[0]
-
-                    $("#id")
-                    .val(contacto["Id_Contacto"])
-                    .trigger("focus")
-
-                    $("#correo_electronico").val(contacto["Correo_Electronico"])
-                    $("#nombre").val(contacto["Nombre"])
-                    $("#asunto").val(contacto["Asunto"])
+                $.get("/editar", {id: id})
+                .done(function (respuesta) {
+                    if (respuesta.length > 0) {
+                        var contacto = respuesta[0];
+                        $("#id").val(contacto["Id_Contacto"]);
+                        $("#correo_electronico").val(contacto["Correo_Electronico"]);
+                        $("#nombre").val(contacto["Nombre"]);
+                        $("#asunto").val(contacto["Asunto"]);
+                    }
                 })
-            })
-            
-            $(document).on("click", ".btn-eliminar", function (event) {
+                .fail(function (error) {
+                    console.error("Error al editar contacto:", error);
+                });
+            });
+
+            $(document).on("click", ".btn-eliminar", function () {
                 if (!confirm("¿Quieres eliminar este registro?")) {
-                    return
+                    return;
                 }
 
-                var id = $(this).attr("data-id")
+                var id = $(this).attr("data-id");
 
-                $.post("/eliminar", {id: id}, function() {
-                    buscar()
+                $.post("/eliminar", {id: id})
+                .done(function () {
+                    buscar();
                 })
-            })
+                .fail(function (error) {
+                    console.error("Error al eliminar contacto:", error);
+                });
+            });
 
             $("#frm")
-            .submit(function (event)  {
-                event.preventDefault()
+            .submit(function (event) {
+                event.preventDefault();
 
-                $.post("/guardar", $(this).serialize(), function (respuesta) {
-                    $("#frm").get(0).reset()
-                    buscar()
+                $.post("/guardar", $(this).serialize())
+                .done(function () {
+                    $("#frm").get(0).reset();
+                    buscar();
                 })
+                .fail(function (error) {
+                    console.error("Error al guardar contacto:", error);
+                });
             })
-            .on("reset", function (event) {
-                $("#id").val("")
-            })
+            .on("reset", function () {
+                $("#id").val("");
+            });
 
-            Pusher.logToConsole = true
-            
+            Pusher.logToConsole = true;
+
             var pusher = new Pusher('252e6abbd99ae9de9d15', {
                 cluster: 'us2'
-            })
+            });
 
-            var channel = pusher.subscribe("canalRegistrosContacto")
+            var channel = pusher.subscribe("canalRegistrosContacto");
 
-            channel.bind("registroContacto", function (contacto) {
-                buscar()
-            })
-        })
-    </script>    
+            channel.bind("registroContacto", function () {
+                buscar();
+            });
+        });
+    </script>
 </body>
 </html>
