@@ -2,8 +2,10 @@ from flask import Flask, render_template, request, jsonify, make_response
 import pusher
 import mysql.connector
 from mysql.connector import Error
+from flask_cors import CORS, cross_origin
 
 app = Flask(__name__)
+CORS(app)
 
 # Configuración de Pusher
 pusher_client = pusher.Pusher(
