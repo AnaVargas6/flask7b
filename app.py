@@ -32,7 +32,7 @@ def notificarActualizacionTelefonoArchivo():
 def index():
     return render_template("app.html")
 
-# Ruta para buscar pagos en la base de datos
+# Ruta para buscar contactos en la base de datos
 @app.route("/buscar")
 def buscar():
     if not con.is_connected():
