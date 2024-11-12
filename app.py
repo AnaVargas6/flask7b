@@ -1,137 +1,136 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-    <title>App Contacto</title>
-</head>
-<body>
-    <div class="container">
-        <h1>Lista de Contactos</h1>
+from flask import Flask, render_template, request, jsonify, make_response
+import pusher
+import mysql.connector
+from flask_cors import CORS, cross_origin
 
-        <!-- Formulario para agregar o editar contacto -->
-        <form id="formContacto">
-            <input type="hidden" id="id_contacto" name="id_contacto">
-            <div class="mb-3">
-                <label for="Correo_Electronico" class="form-label">Correo Electrónico</label>
-                <input type="email" class="form-control" id="Correo_Electronico" name="Correo_Electronico" required>
-            </div>
-            <div class="mb-3">
-                <label for="Nombre" class="form-label">Nombre</label>
-                <input type="text" class="form-control" id="Nombre" name="Nombre" required>
-            </div>
-            <div class="mb-3">
-                <label for="Asunto" class="form-label">Asunto</label>
-                <input type="text" class="form-control" id="Asunto" name="Asunto" required>
-            </div>
-            <button type="submit" class="btn btn-success">Guardar</button>
-            <button id="btnActualizar" class="btn btn-primary ms-2">Actualizar</button>
-        </form>
+# Configuración de la base de datos
+con = mysql.connector.connect(
+    host="185.232.14.52",
+    database="u760464709_tst_sep",
+    user="u760464709_tst_sep_usr",
+    password="dJ0CIAFF="
+)
 
-        <!-- Tabla para mostrar los contactos -->
-        <table class="table table-sm mt-3">
-            <thead>
-                <tr>
-                    <th>Id Contacto</th>
-                    <th>Correo Electrónico</th>
-                    <th>Nombre</th>
-                    <th>Asunto</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody id="tbodyContactos"></tbody>
-        </table>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+# Inicializar la aplicación Flask
+app = Flask(__name__)
+CORS(app)
+# Configurar Pusher
+  pusher_client = pusher.Pusher(
+       app_id='1872169',
+       key='6ffe9987dac447a007d3',
+       secret='3a562d889c72593dd4b5',
+       cluster='us3',
+       ssl=True
+    )
 
-    <script>
-        window.addEventListener("load", function (event) {
-            function buscar() {
-                $.get("/buscar", function (respuesta) {
-                    $("#tbodyContactos").html("");
-                    respuesta.data.forEach(function(contacto) {
-                        $("#tbodyContactos").append(`<tr>
-                            <td>${contacto[0]}</td>
-                            <td>${contacto[1]}</td>
-                            <td>${contacto[2]}</td>
-                            <td>${contacto[3]}</td>
-                            <td>
-                                <button class="btn btn-warning btn-sm" onclick="editar(${contacto[0]}, '${contacto[1]}', '${contacto[2]}', '${contacto[3]}')">Editar</button>
-                                <button class="btn btn-danger btn-sm" onclick="eliminar(${contacto[0]})">Eliminar</button>
-                            </td>
-                        </tr>`);
-                    });
-                });
-            }
+def notificarActualizacionTelefonoArchivo():
+    pusher_client.trigger("canalContactos", "registroContacto", {})
 
-            buscar();
+# Página principal
+@app.route("/")
+def index():
+     #return render_template("Formulario.html")
+      return render_template("app.html")
 
-            Pusher.logToConsole = true;
-            var pusher = new Pusher("252e6abbd99ae9de9d15", {
-                cluster: "us3"
-            });
+# Ruta para buscar pagos en la base de datos
+@app.route("/buscar")
+def buscar():
+    if not con.is_connected():
+        con.reconnect()
 
-            var channel = pusher.subscribe("canalContactos");
+    cursor = con.cursor()
+    cursor.execute("""
+    SELECT Id_Contacto, Correo_Electronico, Nombre,Asunto FROM tst0_contacto 
+    ORDER BY Id_Contacto DESC
+    LIMIT 10 OFFSET 0
+    """)
+    
+    registros = cursor.fetchall()
+    con.close()
 
-            channel.bind("registroContacto", function (contacto) {
-                $("#tbodyContactos").prepend(`<tr>
-                    <td>${contacto.Id_Contacto}</td>
-                    <td>${contacto.Correo_Electronico}</td>
-                    <td>${contacto.Nombre}</td>
-                    <td>${contacto.Asunto}</td>
-                    <td>
-                        <button class="btn btn-warning btn-sm" onclick="editar(${contacto.Id_Contacto}, '${contacto.Correo_Electronico}', '${contacto.Nombre}', '${contacto.Asunto}')">Editar</button>
-                        <button class="btn btn-danger btn-sm" onclick="eliminar(${contacto.Id_Contacto})">Eliminar</button>
-                    </td>
-                </tr>`);
-            });
+    return make_response(jsonify(registros))
 
-            channel.bind("modificarContacto", function (contacto) {
-                buscar();
-            });
+# Ruta para registrar un nuevo pago y activar el evento Pusher
+@app.route("/registrar", methods=["POST"])
+def registrar():
+    if not con.is_connected():
+        con.reconnect()
 
-            channel.bind("eliminarContacto", function (data) {
-                buscar();
-            });
+    id = request.form.get("id")
+    Correo_Electronico = request.form.get("Correo_Electronico")
+    Nombre = request.form.get("Nombre")
+    Asunto = request.form.get("Asunto")
+    
+    cursor = con.cursor()
 
-            window.editar = function(id, Correo_Electronico, Nombre, Asunto) {
-                $("#id_contacto").val(id);
-                $("#Correo_Electronico").val(Correo_Electronico);
-                $("#Nombre").val(Nombre);
-                $("#Asunto").val(Asunto);
-            };
+    if id:
+        sql = """
+        UPDATE tst0_contacto SET
+        Correo_Electronico = %s,
+        Nombre = %s,
+        Asunto = %s
+        WHERE Id_Contacto = %s
+        """
+        val = (Correo_Electronico, Nombre,Asunto, id)
+    else:
+        sql = """
+        INSERT INTO tst0_contacto (Correo_Electronico, Nombre,Asunto)
+        VALUES (%s, %s, %s)
+        """
+        val = (Correo_Electronico, Nombre,Asunto)
+    
+    cursor.execute(sql, val)
+    con.commit()
+    cursor.close()
 
-            $("#formContacto").submit(function(event) {
-                event.preventDefault();
-                var formData = $(this).serialize();
-                var id_contacto = $("#id_contacto").val();
+    notificarActualizacionTelefonoArchivo()
+    return make_response(jsonify({}))
 
-                if (id_contacto) {
-                    $.post("/modificar", formData, function() {
-                        buscar();
-                        $("#formContacto")[0].reset();
-                    });
-                } else {
-                    // Usa POST para el registro en vez de GET
-                    $.post("/registrar", formData, function() {
-                        buscar();
-                        $("#formContacto")[0].reset();
-                    });
-                }
-            });
+# Ruta para editar un registro existente
+@app.route("/editar", methods=["GET"])
+def editar():
+    if not con.is_connected():
+        con.reconnect()
 
-            window.eliminar = function(id) {
-                if (confirm("¿Estás seguro de que deseas eliminar este contacto?")) {
-                    $.post("/eliminar", { id_contacto: id }, function() {
-                        buscar();
-                    });
-                }
-            };
-        });
-    </script>    
-</body>
-</html>
+    id = request.args.get("id")
+
+    cursor = con.cursor(dictionary=True)
+    sql = """
+    SELECT Id_Contacto, Correo_Electronico, Nombre,Asunto FROM tst0_contacto
+    WHERE Id_Curso_Pago = %s
+    """
+    val = (id,)
+
+    cursor.execute(sql, val)
+    registros = cursor.fetchall()
+    con.close()
+
+    return make_response(jsonify(registros))
+
+# Ruta para eliminar un registro
+@app.route("/eliminar", methods=["POST"])
+def eliminar():
+    if not con.is_connected():
+        con.reconnect()
+
+    id = request.form.get("id")
+
+    cursor = con.cursor()
+    sql = """
+    DELETE FROM tst0_contacto
+    WHERE Id_Contacto = %s
+    """
+    val = (id,)
+
+    cursor.execute(sql, val)
+    con.commit()
+    con.close()
+
+    notificarActualizacionTelefonoArchivo()
+
+    return make_response(jsonify({}))
+
+# Iniciar la aplicación
+if __name__ == "__main__":
+    app.run(debug=True)
