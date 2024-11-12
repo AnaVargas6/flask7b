@@ -16,16 +16,16 @@
         <form id="formContacto">
             <input type="hidden" id="id_contacto" name="id_contacto">
             <div class="mb-3">
-                <label for="correo_electronico" class="form-label">Correo Electrónico</label>
-                <input type="email" class="form-control" id="correo_electronico" name="correo_electronico" required>
+                <label for="Correo_Electronico" class="form-label">Correo Electrónico</label>
+                <input type="email" class="form-control" id="Correo_Electronico" name="Correo_Electronico" required>
             </div>
             <div class="mb-3">
-                <label for="nombre" class="form-label">Nombre</label>
-                <input type="text" class="form-control" id="nombre" name="nombre" required>
+                <label for="Nombre" class="form-label">Nombre</label>
+                <input type="text" class="form-control" id="Nombre" name="Nombre" required>
             </div>
             <div class="mb-3">
-                <label for="asunto" class="form-label">Asunto</label>
-                <input type="text" class="form-control" id="asunto" name="asunto" required>
+                <label for="Asunto" class="form-label">Asunto</label>
+                <input type="text" class="form-control" id="Asunto" name="Asunto" required>
             </div>
             <button type="submit" class="btn btn-success">Guardar</button>
             <button id="btnActualizar" class="btn btn-primary ms-2">Actualizar</button>
@@ -107,11 +107,11 @@
             });
 
             // Función para cargar datos en el formulario para editar
-            window.editar = function(id, correo, nombre, asunto) {
+            window.editar = function(id, Correo_Electronico, Nombre, Asunto) {
                 $("#id_contacto").val(id);
-                $("#correo_electronico").val(correo);
-                $("#nombre").val(nombre);
-                $("#asunto").val(asunto);
+                $("#Correo_Electronico").val(Correo_Electronico);
+                $("#Nombre").val(Nombre);
+                $("#Asunto").val(Asunto);
             };
 
             // Enviar el formulario para guardar (ya sea agregar o editar)
