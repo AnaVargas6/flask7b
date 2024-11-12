@@ -1,9 +1,7 @@
-from flask import Flask, render_template, request, jsonify, make_response
+from flask import Flask, render_template, request, jsonify
 import pusher
 import mysql.connector
-from flask_cors import CORS, cross_origin
 
-# Configuración de la base de datos
 con = mysql.connector.connect(
     host="185.232.14.52",
     database="u760464709_tst_sep",
@@ -11,124 +9,140 @@ con = mysql.connector.connect(
     password="dJ0CIAFF="
 )
 
-
-# Inicializar la aplicación Flask
 app = Flask(__name__)
-CORS(app)
-# Configurar Pusher
-pusher_client = pusher.Pusher(
-    app_id="1867163",
-    key="2358693f2b619b363f59",
-    secret="880f60b50e86e4555c43",
-    cluster="us2",
-    ssl=True
-)
 
-def notificarActualizacionTelefonoArchivo():
-    pusher_client.trigger("CanalPago_curso", "pago-curso", {})
-
-# Página principal
+# Ruta principal para cargar el HTML
 @app.route("/")
 def index():
-     #return render_template("Formulario.html")
-      return render_template("Pago-Curso.html")
+    return render_template("app.html")
 
-# Ruta para buscar pagos en la base de datos
+# Ruta para buscar los contactos en la base de datos
 @app.route("/buscar")
 def buscar():
     if not con.is_connected():
         con.reconnect()
-
     cursor = con.cursor()
-    cursor.execute("""
-    SELECT Id_Curso_Pago, Telefono, Archivo FROM tst0_cursos_pagos 
-    ORDER BY Id_Curso_Pago DESC
-    LIMIT 10 OFFSET 0
-    """)
-    
+    cursor.execute("SELECT * FROM tst0_contacto")
+   
     registros = cursor.fetchall()
+    cursor.close()
     con.close()
 
-    return make_response(jsonify(registros))
+    return {"data": registros}
 
-# Ruta para registrar un nuevo pago y activar el evento Pusher
-@app.route("/registrar", methods=["POST"])
+# Ruta para registrar un nuevo contacto
+@app.route('/registrar', methods=['POST'])
 def registrar():
+    # Lógica para manejar la solicitud POST
+    return jsonify({"status": "success"})
+    args = request.args
+
     if not con.is_connected():
         con.reconnect()
-
-    id = request.form.get("id")
-    Telefono = request.form.get("Telefono")
-    Archivo = request.form.get("Archivo")
-    
     cursor = con.cursor()
 
-    if id:
-        sql = """
-        UPDATE tst0_cursos_pagos SET
-        Telefono = %s,
-        Archivo = %s
-        WHERE Id_Curso_Pago = %s
-        """
-        val = (Telefono, Archivo, id)
-    else:
-        sql = """
-        INSERT INTO tst0_cursos_pagos (Telefono, Archivo)
-        VALUES (%s, %s)
-        """
-        val = (Telefono, Archivo)
-    
+    sql = "INSERT INTO tst0_contacto (Correo_Electronico, Nombre, Asunto) VALUES (%s, %s, %s)"
+    val = (args["correo_electronico"], args["nombre"], args["asunto"])
     cursor.execute(sql, val)
+   
+    con.commit()
+
+    # Obtener el último ID insertado
+    contacto_id = cursor.lastrowid
+    cursor.close()
+    con.close()
+
+    # Configuración de Pusher
+   pusher_client = pusher.Pusher(
+     app_id='1766036',
+     key='252e6abbd99ae9de9d15',
+     secret='8e19ebe8863460415a3f',
+    cluster='us2',
+    ssl=True
+    )
+
+    # Crear el objeto contacto
+    contacto = {
+        "Id_Contacto": contacto_id,
+        "Correo_Electronico": args["correo_electronico"],
+        "Nombre": args["nombre"],
+        "Asunto": args["asunto"]
+    }
+
+    # Disparar el evento "registroContacto" con el nuevo contacto
+    pusher_client.trigger("canalContactos", "registroContacto", contacto)
+
+    return contacto
+
+# Ruta para modificar un contacto existente
+@app.route("/modificar", methods=["POST"])
+def modificar():
+    args = request.form
+
+    if not con.is_connected():
+        con.reconnect()
+    cursor = con.cursor()
+
+    sql = "UPDATE tst0_contacto SET Correo_Electronico = %s, Nombre = %s, Asunto = %s WHERE Id_Contacto = %s"
+    val = (args["correo_electronico"], args["nombre"], args["asunto"], args["id_contacto"])
+    cursor.execute(sql, val)
+
     con.commit()
     cursor.close()
-
-    notificarActualizacionTelefonoArchivo()
-    return make_response(jsonify({}))
-
-# Ruta para editar un registro existente
-@app.route("/editar", methods=["GET"])
-def editar():
-    if not con.is_connected():
-        con.reconnect()
-
-    id = request.args.get("id")
-
-    cursor = con.cursor(dictionary=True)
-    sql = """
-    SELECT Id_Curso_Pago, Telefono, Archivo FROM tst0_cursos_pagos
-    WHERE Id_Curso_Pago = %s
-    """
-    val = (id,)
-
-    cursor.execute(sql, val)
-    registros = cursor.fetchall()
     con.close()
 
-    return make_response(jsonify(registros))
+    # Configuración de Pusher
+    pusher_client = pusher.Pusher(
+       app_id='1872169',
+       key='6ffe9987dac447a007d3',
+       secret='3a562d889c72593dd4b5',
+       cluster='us3',
+       ssl=True
+    )
 
-# Ruta para eliminar un registro
+    # Crear el objeto contacto
+    contacto = {
+        "Id_Contacto": args["id_contacto"],
+        "Correo_Electronico": args["correo_electronico"],
+        "Nombre": args["nombre"],
+        "Asunto": args["asunto"]
+    }
+
+    # Disparar el evento "modificarContacto" con el contacto actualizado
+    pusher_client.trigger("canalContactos", "modificarContacto", contacto)
+
+    return jsonify(contacto)
+
+# Ruta para eliminar un contacto
 @app.route("/eliminar", methods=["POST"])
 def eliminar():
+    args = request.form
+
     if not con.is_connected():
         con.reconnect()
-
-    id = request.form.get("id")
-
     cursor = con.cursor()
-    sql = """
-    DELETE FROM tst0_cursos_pagos
-    WHERE Id_Curso_Pago = %s
-    """
-    val = (id,)
 
+    sql = "DELETE FROM tst0_contacto WHERE Id_Contacto = %s"
+    val = (args["id_contacto"],)
     cursor.execute(sql, val)
+
     con.commit()
+    cursor.close()
     con.close()
 
-    notificarActualizacionTelefonoArchivo()
+    # Configuración de Pusher
+    pusher_client = pusher.Pusher(
+       app_id='1872169',
+       key='6ffe9987dac447a007d3',
+       secret='3a562d889c72593dd4b5',
+       cluster='us3',
+       ssl=True
+    )
 
-    return make_response(jsonify({}))
+    # Disparar el evento "eliminarContacto" con el ID del contacto eliminado
+    pusher_client.trigger("canalContactos", "eliminarContacto", {"Id_Contacto": args["id_contacto"]})
 
-# Iniciar la aplicación
+    return jsonify({"status": "Contacto eliminado"})
+
 if __name__ == "__main__":
     app.run(debug=True)
