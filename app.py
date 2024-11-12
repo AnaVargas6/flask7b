@@ -31,7 +31,7 @@ def buscar():
     return {"data": registros}
 
 # Ruta para registrar un nuevo contacto
-@app.route("/registrar", methods=["GET"])
+@app.route("/registrar", methods=["POST"])
 def registrar():
     args = request.args
 
