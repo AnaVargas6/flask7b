@@ -1,178 +1,146 @@
-from flask import Flask, render_template, request, jsonify, make_response
+from flask import Flask, render_template, request, jsonify
 import pusher
 import mysql.connector
-from mysql.connector import Error
-from flask_cors import CORS, cross_origin
 
-app = Flask(__name__)
-CORS(app)
-
-# Configuración de Pusher
-pusher_client = pusher.Pusher(
-    app_id="1714541",
-    key="2df86616075904231311",
-    secret="2f91d936fd43d8e85a1a",
-    cluster="us2",
-    ssl=True
+con = mysql.connector.connect(
+    host="185.232.14.52",
+    database="u760464709_tst_sep",
+    user="u760464709_tst_sep_usr",
+    password="dJ0CIAFF="
 )
 
-# Función para obtener una nueva conexión a la base de datos
-def get_db_connection():
-    try:
-        con = mysql.connector.connect(
-            host="185.232.14.52",
-            database="u760464709_tst_sep",
-            user="u760464709_tst_sep_usr",
-            password="dJ0CIAFF="
-        )
-        return con
-    except Error as e:
-        print(f"Error al conectar a la base de datos: {e}")
-        return None
+app = Flask(__name__)
 
-# Ruta principal
+# Ruta principal para cargar el HTML
 @app.route("/")
 def index():
     return render_template("app.html")
 
-# Ruta para alumnos
-@app.route("/alumnos")
-def alumnos():
-    return render_template("alumnos.html")
-
-# Ruta para guardar alumnos
-@app.route("/alumnos/guardar", methods=["POST"])
-def alumnos_guardar():
-    matricula = request.form["txtMatriculaFA"]
-    nombreapellido = request.form["txtNombreApellidoFA"]
-    return f"Matrícula {matricula} Nombre y Apellido {nombreapellido}"
-
-# Función para notificar actualización de contacto
-def notificar_actualizacion_contacto(mensaje):
-    pusher_client.trigger("canalRegistrosContacto", "registroContacto", {"mensaje": mensaje})
-
-# Ruta para buscar contactos
+# Ruta para buscar los contactos en la base de datos
 @app.route("/buscar")
 def buscar():
-    con = get_db_connection()
-    if not con:
-        return make_response(jsonify({"error": "Error al conectar a la base de datos"}), 500)
+    if not con.is_connected():
+        con.reconnect()
+    cursor = con.cursor()
+    cursor.execute("SELECT * FROM tst0_contacto")
+   
+    registros = cursor.fetchall()
+    cursor.close()
+    con.close()
 
-    try:
-        cursor = con.cursor(dictionary=True)
-        cursor.execute("""
-        SELECT Id_Contacto, Correo_Electronico, Nombre, Asunto 
-        FROM tst0_contacto
-        ORDER BY Id_Contacto DESC
-        LIMIT 10 OFFSET 0
-        """)
-        registros = cursor.fetchall()
-        return make_response(jsonify(registros))
-    except Error as e:
-        print(f"Error al ejecutar la consulta: {e}")
-        return make_response(jsonify({"error": "Error al obtener los datos"}), 500)
-    finally:
-        cursor.close()
-        con.close()
+    return {"data": registros}
 
-# Ruta para guardar contactos
-@app.route("/guardar", methods=["POST"])
-def guardar():
-    con = get_db_connection()
-    if not con:
-        return make_response(jsonify({"error": "Error al conectar a la base de datos"}), 500)
+# Ruta para registrar un nuevo contacto
+@app.route("/registrar", methods=["GET"])
+def registrar():
+    args = request.args
 
-    try:
-        id = request.form["id"]
-        correo_electronico = request.form["correo_electronico"]
-        nombre = request.form["nombre"]
-        asunto = request.form["asunto"]
+    if not con.is_connected():
+        con.reconnect()
+    cursor = con.cursor()
 
-        cursor = con.cursor()
+    sql = "INSERT INTO tst0_contacto (Correo_Electronico, Nombre, Asunto) VALUES (%s, %s, %s)"
+    val = (args["correo_electronico"], args["nombre"], args["asunto"])
+    cursor.execute(sql, val)
+   
+    con.commit()
 
-        if id:
-            sql = """
-            UPDATE tst0_contacto SET
-            Correo_Electronico = %s,
-            Nombre = %s,
-            Asunto = %s
-            WHERE Id_Contacto = %s
-            """
-            val = (correo_electronico, nombre, asunto, id)
-        else:
-            sql = """
-            INSERT INTO tst0_contacto (Correo_Electronico, Nombre, Asunto)
-                            VALUES (%s, %s, %s)
-            """
-            val = (correo_electronico, nombre, asunto)
+    # Obtener el último ID insertado
+    contacto_id = cursor.lastrowid
+    cursor.close()
+    con.close()
 
-        cursor.execute(sql, val)
-        con.commit()
+    # Configuración de Pusher
+    pusher_client = pusher.Pusher(
+       app_id='1872169',
+       key='6ffe9987dac447a007d3',
+       secret='3a562d889c72593dd4b5',
+       cluster='us3',
+       ssl=True
+    )
 
-        # Notificar la actualización
-        notificar_actualizacion_contacto("Contacto actualizado")
+    # Crear el objeto contacto
+    contacto = {
+        "Id_Contacto": contacto_id,
+        "Correo_Electronico": args["correo_electronico"],
+        "Nombre": args["nombre"],
+        "Asunto": args["asunto"]
+    }
 
-        return make_response(jsonify({}))
-    except Error as e:
-        print(f"Error al ejecutar la consulta: {e}")
-        return make_response(jsonify({"error": "Error al guardar el contacto"}), 500)
-    finally:
-        cursor.close()
-        con.close()
+    # Disparar el evento "registroContacto" con el nuevo contacto
+    pusher_client.trigger("canalContactos", "registroContacto", contacto)
 
-# Ruta para editar contactos
-@app.route("/editar", methods=["GET"])
-def editar():
-    con = get_db_connection()
-    if not con:
-        return make_response(jsonify({"error": "Error al conectar a la base de datos"}), 500)
+    return contacto
 
-    try:
-        id = request.args["id"]
+# Ruta para modificar un contacto existente
+@app.route("/modificar", methods=["POST"])
+def modificar():
+    args = request.form
 
-        cursor = con.cursor(dictionary=True)
-        sql = """
-        SELECT Id_Contacto, Correo_Electronico, Nombre, Asunto 
-        FROM tst0_contacto
-        WHERE Id_Contacto = %s
-        """
-        val = (id,)
-        cursor.execute(sql, val)
-        registros = cursor.fetchall()
-        return make_response(jsonify(registros))
-    except Error as e:
-        print(f"Error al ejecutar la consulta: {e}")
-        return make_response(jsonify({"error": "Error al obtener el contacto"}), 500)
-    finally:
-        cursor.close()
-        con.close()
+    if not con.is_connected():
+        con.reconnect()
+    cursor = con.cursor()
 
-# Ruta para eliminar contactos
+    sql = "UPDATE tst0_contacto SET Correo_Electronico = %s, Nombre = %s, Asunto = %s WHERE Id_Contacto = %s"
+    val = (args["correo_electronico"], args["nombre"], args["asunto"], args["id_contacto"])
+    cursor.execute(sql, val)
+
+    con.commit()
+    cursor.close()
+    con.close()
+
+    # Configuración de Pusher
+    pusher_client = pusher.Pusher(
+       app_id='1872169',
+       key='6ffe9987dac447a007d3',
+       secret='3a562d889c72593dd4b5',
+       cluster='us3',
+       ssl=True
+    )
+
+    # Crear el objeto contacto
+    contacto = {
+        "Id_Contacto": args["id_contacto"],
+        "Correo_Electronico": args["correo_electronico"],
+        "Nombre": args["nombre"],
+        "Asunto": args["asunto"]
+    }
+
+    # Disparar el evento "modificarContacto" con el contacto actualizado
+    pusher_client.trigger("canalContactos", "modificarContacto", contacto)
+
+    return jsonify(contacto)
+
+# Ruta para eliminar un contacto
 @app.route("/eliminar", methods=["POST"])
 def eliminar():
-    con = get_db_connection()
-    if not con:
-        return make_response(jsonify({"error": "Error al conectar a la base de datos"}), 500)
+    args = request.form
 
-    try:
-        id = request.form["id"]
+    if not con.is_connected():
+        con.reconnect()
+    cursor = con.cursor()
 
-        cursor = con.cursor()
-        sql = """
-        DELETE FROM tst0_contacto
-        WHERE Id_Contacto = %s
-        """
-        val = (id,)
-        cursor.execute(sql, val)
-        con.commit()
+    sql = "DELETE FROM tst0_contacto WHERE Id_Contacto = %s"
+    val = (args["id_contacto"],)
+    cursor.execute(sql, val)
 
-        # Notificar la eliminación
-        notificar_actualizacion_contacto("Contacto eliminado")
+    con.commit()
+    cursor.close()
+    con.close()
 
-        return make_response(jsonify({}))
-    except Error as e:
-        print(f"Error al ejecutar la consulta: {e}")
-        return make_response(jsonify({"error": "Error al eliminar el contacto"}), 500)
-    finally:
-        cursor.close()
-        con.close()
+    # Configuración de Pusher
+    pusher_client = pusher.Pusher(
+       app_id='1872169',
+       key='6ffe9987dac447a007d3',
+       secret='3a562d889c72593dd4b5',
+       cluster='us3',
+       ssl=True
+    )
+
+    # Disparar el evento "eliminarContacto" con el ID del contacto eliminado
+    pusher_client.trigger("canalContactos", "eliminarContacto", {"Id_Contacto": args["id_contacto"]})
+
+    return jsonify({"status": "Contacto eliminado"})
+
+if __name__ == "__main__":
+    app.run(debug=True)
