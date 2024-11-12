@@ -1,204 +1,178 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+from flask import Flask, render_template, request, jsonify, make_response
+import pusher
+import mysql.connector
+from mysql.connector import Error
+from flask_cors import CORS, cross_origin
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+app = Flask(__name__)
+CORS(app)
 
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+# Configuración de Pusher
+pusher_client = pusher.Pusher(
+    app_id="1714541",
+    key="2df86616075904231311",
+    secret="2f91d936fd43d8e85a1a",
+    cluster="us2",
+    ssl=True
+)
 
-    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+# Función para obtener una nueva conexión a la base de datos
+def get_db_connection():
+    try:
+        con = mysql.connector.connect(
+            host="185.232.14.52",
+            database="u760464709_tst_sep",
+            user="u760464709_tst_sep_usr",
+            password="dJ0CIAFF="
+        )
+        return con
+    except Error as e:
+        print(f"Error al conectar a la base de datos: {e}")
+        return None
 
-    <title>App</title>
-</head>
-<body>
-    <div class="container">
-      <form id="frm" method="post">
-          <input type="hidden" id="id" name="id">
+# Ruta principal
+@app.route("/")
+def index():
+    return render_template("app.html")
 
-          <div class="mb-1">
-              <label for="correo_electronico">Correo Electrónico</label>
-              <input type="email" id="correo_electronico" name="correo_electronico" class="form-control">
-          </div>
-          <div class="mb-1">
-              <label for="nombre">Nombre</label>
-              <input type="text" id="nombre" name="nombre" class="form-control">
-          </div>
-          <div class="mb-1">
-              <label for="asunto">Asunto</label>
-              <input type="text" id="asunto" name="asunto" class="form-control">
-          </div>
-          <div class="mb-1">
-              <button id="guardar" name="guardar" class="btn btn-dark">Guardar</button>
-              <button type="reset" id="cancelar" name="cancelar" class="btn btn-link">Cancelar</button>
-          </div>
-      </form>
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th>Correo Electrónico</th>
-            <th>Nombre</th>
-            <th>Asunto</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="tbodyContacto"></tbody>
-      </table>
-    </div>
+# Ruta para alumnos
+@app.route("/alumnos")
+def alumnos():
+    return render_template("alumnos.html")
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+# Ruta para guardar alumnos
+@app.route("/alumnos/guardar", methods=["POST"])
+def alumnos_guardar():
+    matricula = request.form["txtMatriculaFA"]
+    nombreapellido = request.form["txtNombreApellidoFA"]
+    return f"Matrícula {matricula} Nombre y Apellido {nombreapellido}"
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <div class="app-float-button bg-body" style="z-index: 3; position: fixed; bottom: 5px; left: 5px; cursor: pointer;">
-        <ul class="list-group list-group-horizontal">
-            <li class="list-group-item" data-bs-theme-value="light">
-                <i class="bi bi-sun-fill"></i>
-            </li>
-            <li class="list-group-item" data-bs-theme-value="dark">
-                <i class="bi bi-moon-stars-fill"></i>
-            </li>
-            <li class="list-group-item" data-bs-theme-value="auto">
-                <i class="bi bi-circle-half"></i>
-            </li>
-        </ul>
-    </div>
-    
-    <!-- Lógica de cambio de tema -->
-    <script>
-        var bootstrapTheme = localStorage.getItem("theme");
+# Función para notificar actualización de contacto
+def notificar_actualizacion_contacto(mensaje):
+    pusher_client.trigger("canalRegistrosContacto", "registroContacto", {"mensaje": mensaje})
 
-        function getPreferredTheme() {
-            if (bootstrapTheme) {
-                return bootstrapTheme;
-            }
+# Ruta para buscar contactos
+@app.route("/buscar")
+def buscar():
+    con = get_db_connection()
+    if not con:
+        return make_response(jsonify({"error": "Error al conectar a la base de datos"}), 500)
 
-            return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-        }
+    try:
+        cursor = con.cursor(dictionary=True)
+        cursor.execute("""
+        SELECT Id_Contacto, Correo_Electronico, Nombre, Asunto 
+        FROM tst0_contacto
+        ORDER BY Id_Contacto DESC
+        LIMIT 10 OFFSET 0
+        """)
+        registros = cursor.fetchall()
+        return make_response(jsonify(registros))
+    except Error as e:
+        print(f"Error al ejecutar la consulta: {e}")
+        return make_response(jsonify({"error": "Error al obtener los datos"}), 500)
+    finally:
+        cursor.close()
+        con.close()
 
-        function setTheme(theme) {
-            if (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-                document.documentElement.setAttribute("data-bs-theme", "dark");
-            } else {
-                document.documentElement.setAttribute("data-bs-theme", ((theme == "auto") ? "light" : theme));
-            }
-        }
+# Ruta para guardar contactos
+@app.route("/guardar", methods=["POST"])
+def guardar():
+    con = get_db_connection()
+    if not con:
+        return make_response(jsonify({"error": "Error al conectar a la base de datos"}), 500)
 
-        function showActiveTheme(theme) {
-            $("[data-bs-theme-value]").removeClass("bg-primary text-white active");
-            $(`[data-bs-theme-value="${theme}"]`).addClass("bg-primary text-white active");
-        }
+    try:
+        id = request.form.get("id")  # Cambiado a request.form.get para manejar el caso de que esté vacío
+        correo_electronico = request.form["correo_electronico"]
+        nombre = request.form["nombre"]
+        asunto = request.form["asunto"]
 
-        $(document).on("click", '[data-bs-theme-value]', function () {
-            const theme = this.getAttribute("data-bs-theme-value");
-            localStorage.setItem("theme", theme);
-            setTheme(theme);
-            showActiveTheme(theme);
-        });
+        cursor = con.cursor()
 
-        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
-            if (bootstrapTheme !== "light" || bootstrapTheme !== "dark") {
-                setTheme(getPreferredTheme());
-            }
-        });
+        if id:  # Si el ID está presente, se actualiza el contacto existente
+            sql = """
+            UPDATE tst0_contacto SET
+            Correo_Electronico = %s,
+            Nombre = %s,
+            Asunto = %s
+            WHERE Id_Contacto = %s
+            """
+            val = (correo_electronico, nombre, asunto, id)
+        else:  # Si no hay ID, se inserta un nuevo contacto
+            sql = """
+            INSERT INTO tst0_contacto (Correo_Electronico, Nombre, Asunto)
+            VALUES (%s, %s, %s)
+            """
+            val = (correo_electronico, nombre, asunto)
 
-        document.addEventListener("DOMContentLoaded", function () {
-            setTheme(bootstrapTheme);
-            showActiveTheme(getPreferredTheme());
-        });
-    </script>
+        cursor.execute(sql, val)
+        con.commit()
 
-    <!-- Lógica de gestión de contactos -->
-    <script>
-        window.addEventListener("load", function () {
-            function buscar() {
-                $.get("/buscar")
-                .done(function (respuesta) {
-                    $("#tbodyContacto").html("");
+        # Notificar la actualización o inserción del contacto
+        notificar_actualizacion_contacto("Contacto guardado o actualizado")
 
-                    for (var x in respuesta) {
-                        var contacto = respuesta[x];
-                        $("#tbodyContacto").append(`<tr>
-                            <td>${contacto["Correo_Electronico"]}</td>
-                            <td>${contacto["Nombre"]}</td>
-                            <td>${contacto["Asunto"]}</td>
-                            <td>
-                                <button class="btn btn-primary btn-editar" data-id="${contacto["Id_Contacto"]}">Editar</button>
-                                <button class="btn btn-danger btn-eliminar" data-id="${contacto["Id_Contacto"]}">Eliminar</button>
-                            </td>
-                        </tr>`);
-                    }
-                })
-                .fail(function (error) {
-                    console.error("Error al obtener contactos:", error);
-                });
-            }
+        return make_response(jsonify({"message": "Contacto guardado correctamente"}), 200)
+    except Error as e:
+        print(f"Error al ejecutar la consulta: {e}")
+        return make_response(jsonify({"error": "Error al guardar el contacto"}), 500)
+    finally:
+        cursor.close()
+        con.close()
 
-            buscar();
+# Ruta para editar contactos
+@app.route("/editar", methods=["GET"])
+def editar():
+    con = get_db_connection()
+    if not con:
+        return make_response(jsonify({"error": "Error al conectar a la base de datos"}), 500)
 
-            $(document).on("click", ".btn-editar", function () {
-                var id = $(this).attr("data-id");
+    try:
+        id = request.args["id"]
 
-                $.get("/editar", {id: id})
-                .done(function (respuesta) {
-                    if (respuesta.length > 0) {
-                        var contacto = respuesta[0];
-                        $("#id").val(contacto["Id_Contacto"]);
-                        $("#correo_electronico").val(contacto["Correo_Electronico"]);
-                        $("#nombre").val(contacto["Nombre"]);
-                        $("#asunto").val(contacto["Asunto"]);
-                    }
-                })
-                .fail(function (error) {
-                    console.error("Error al editar contacto:", error);
-                });
-            });
+        cursor = con.cursor(dictionary=True)
+        sql = """
+        SELECT Id_Contacto, Correo_Electronico, Nombre, Asunto 
+        FROM tst0_contacto
+        WHERE Id_Contacto = %s
+        """
+        val = (id,)
+        cursor.execute(sql, val)
+        registros = cursor.fetchall()
+        return make_response(jsonify(registros))
+    except Error as e:
+        print(f"Error al ejecutar la consulta: {e}")
+        return make_response(jsonify({"error": "Error al obtener el contacto"}), 500)
+    finally:
+        cursor.close()
+        con.close()
 
-            $(document).on("click", ".btn-eliminar", function () {
-                if (!confirm("¿Quieres eliminar este registro?")) {
-                    return;
-                }
+# Ruta para eliminar contactos
+@app.route("/eliminar", methods=["POST"])
+def eliminar():
+    con = get_db_connection()
+    if not con:
+        return make_response(jsonify({"error": "Error al conectar a la base de datos"}), 500)
 
-                var id = $(this).attr("data-id");
+    try:
+        id = request.form["id"]
 
-                $.post("/eliminar", {id: id})
-                .done(function () {
-                    buscar();
-                })
-                .fail(function (error) {
-                    console.error("Error al eliminar contacto:", error);
-                });
-            });
+        cursor = con.cursor()
+        sql = """
+        DELETE FROM tst0_contacto
+        WHERE Id_Contacto = %s
+        """
+        val = (id,)
+        cursor.execute(sql, val)
+        con.commit()
 
-            $("#frm")
-            .submit(function (event) {
-                event.preventDefault();
+        # Notificar la eliminación
+        notificar_actualizacion_contacto("Contacto eliminado")
 
-                $.post("/guardar", $(this).serialize())
-                .done(function () {
-                    $("#frm").get(0).reset();
-                    buscar();
-                })
-                .fail(function (error) {
-                    console.error("Error al guardar contacto:", error);
-                });
-            })
-            .on("reset", function () {
-                $("#id").val("");
-            });
-
-            Pusher.logToConsole = true;
-
-            var pusher = new Pusher('252e6abbd99ae9de9d15', {
-                cluster: 'us2'
-            });
-
-            var channel = pusher.subscribe("canalRegistrosContacto");
-
-            channel.bind("registroContacto", function () {
-                buscar();
-            });
-        });
-    </script>
-</body>
-</html>
+        return make_response(jsonify({"message": "Contacto eliminado correctamente"}), 200)
+    except Error as e:
+        print(f"Error al ejecutar la consulta: {e}")
+        return make_response(jsonify({"error": "Error al eliminar el contacto"}), 500)
+    finally:
+        cursor.close()
+        con.close()
