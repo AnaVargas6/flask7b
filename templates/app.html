@@ -167,12 +167,12 @@
 
             Pusher.logToConsole = true
             
-            var pusher = new Pusher("2358693f2b619b363f59", {
+            var pusher = new Pusher("252e6abbd99ae9de9d15", {
                 cluster: "us2"
             })
 
-            var channel = pusher.subscribe("CanalContactos")
-            channel.bind("contacto-agregado", function (contacto) {
+            var channel = pusher.subscribe("canalContactos")
+            channel.bind("registroContacto", function (contacto) {
                 buscar() // Actualiza la tabla en tiempo real cuando llegue un evento Pusher
             })
         }) 
